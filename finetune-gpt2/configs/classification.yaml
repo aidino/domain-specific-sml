@@ -1,0 +1,200 @@
+# ==============================================================================
+# GPT-2 FINE-TUNING PIPELINE — TEXT CLASSIFICATION CONFIGURATION
+# Cấu hình tinh chỉnh GPT-2 cho tác vụ Phân loại văn bản (Text Classification / Sentiment)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. MODEL CONFIGURATION (Cấu hình mô hình)
+# ------------------------------------------------------------------------------
+model:
+  # Tên model base trên HuggingFace Hub hoặc đường dẫn cục bộ
+  # "gpt2" (124M params) cung cấp biểu diễn ngôn ngữ tốt cho bài toán phân loại văn bản
+  name: "gpt2"
+
+  # Loại tác vụ: "classification" sử dụng GPT2ForSequenceClassification
+  # Tokenizer sẽ tự động cấu hình padding_side = "left" để token cuối mang thông tin phân loại
+  task_type: "classification"
+
+  # Số lượng nhãn phân loại đầu ra (3 nhãn cho Financial PhraseBank: 0=Negative, 1=Neutral, 2=Positive)
+  num_labels: 3
+
+# ------------------------------------------------------------------------------
+# 2. PEFT / LoRA CONFIGURATION (Cấu hình Low-Rank Adaptation)
+# ------------------------------------------------------------------------------
+peft:
+  # Tắt LoRA để thực hiện full fine-tuning toàn bộ mô hình và classification head
+  enabled: false
+
+  # Hạng rank LoRA mặc định (giữ cấu trúc chuẩn khi cần bật LoRA)
+  r: 16
+
+  # Hệ số scaling lora_alpha = 2 * r
+  lora_alpha: 32
+
+  # Tỷ lệ Dropout cho LoRA
+  lora_dropout: 0.05
+
+  # Module áp dụng LoRA trong kiến trúc GPT-2 Conv1D
+  target_modules:
+    - "c_attn"
+
+# ------------------------------------------------------------------------------
+# 3. DATA CONFIGURATION (Cấu hình dữ liệu)
+# ------------------------------------------------------------------------------
+data:
+  # Nguồn dữ liệu: tải tự động từ HuggingFace Hub
+  source: "huggingface"
+
+  # Tên bộ dữ liệu phân tích cảm xúc tài chính nổi tiếng trên HuggingFace Hub
+  dataset_name: "financial_phrasebank"
+
+  # Cấu hình subset có sự đồng thuận tuyệt đối 100% giữa các chuyên gia gán nhãn
+  dataset_config: "sentences_allagree"
+
+  # Không sử dụng đường dẫn file local khi source là "huggingface"
+  local_path: null
+
+  # Tên cột chứa câu văn bản cần phân loại cảm xúc trong dataset
+  text_column: "sentence"
+
+  # Tên cột chứa nhãn cảm xúc dạng số nguyên (0: tiêu cực, 1: trung tính, 2: tích cực)
+  label_column: "label"
+
+  # Độ dài tối đa của câu phân loại (256 token là đủ bao quát toàn bộ câu tin tức tài chính)
+  max_length: 256
+
+  # Tỷ lệ phân chia tập dữ liệu [train, validation, test] theo chuẩn 80/10/10
+  split_ratios:
+    - 0.8
+    - 0.1
+    - 0.1
+
+  # Cấu hình tăng cường dữ liệu văn bản
+  augmentation:
+    # Tắt augmentation để đánh giá chính xác trên tập benchmark chuẩn
+    enabled: false
+
+    # Các kỹ thuật tăng cường sẵn sàng kích hoạt khi cần xử lý dữ liệu nhỏ
+    techniques:
+      - "synonym_replace"
+      - "random_delete"
+
+    # Tỷ lệ phần trăm mẫu được áp dụng augmentation trong tập train
+    augment_ratio: 0.2
+
+# ------------------------------------------------------------------------------
+# 4. TRAINING CONFIGURATION (Cấu hình siêu tham số huấn luyện)
+# ------------------------------------------------------------------------------
+training:
+  # Số epoch huấn luyện (5 epoch kết hợp early stopping giúp hội tụ tốt mà không overfit)
+  num_epochs: 5
+
+  # Kích thước batch tăng lên 16 do chuỗi phân loại ngắn hơn (256 tokens)
+  batch_size: 16
+
+  # Tích lũy gradient 2 bước -> Effective batch size = 16 * 2 = 32
+  gradient_accumulation_steps: 2
+
+  # Tốc độ học 2e-5 (Learning rate nhỏ và an toàn cho bài toán classification fine-tuning)
+  learning_rate: 2.0e-5
+
+  # Hệ số Weight Decay giúp kiểm soát trọng số phân loại chống hiện tượng ghi nhớ mẫu
+  weight_decay: 0.01
+
+  # Tỷ lệ 5% số bước đầu tiên dùng để warmup learning rate
+  warmup_ratio: 0.05
+
+  # Giảm learning rate theo đường cong Cosine sau giai đoạn warmup
+  lr_scheduler_type: "cosine"
+
+  # Random seed cố định đảm bảo tính tái lập kết quả phân loại
+  seed: 42
+
+  # Tự động chọn chế độ mixed precision (bf16/fp16/none) tối ưu cho phần cứng hiện tại
+  mixed_precision: "auto"
+
+# ------------------------------------------------------------------------------
+# 5. EARLY STOPPING CONFIGURATION (Cấu hình dừng sớm)
+# ------------------------------------------------------------------------------
+early_stopping:
+  # Bật tính năng dừng sớm để tránh overfitting trên tập phân loại
+  enabled: true
+
+  # Dừng sau 3 lần đánh giá liên tiếp nếu validation loss không giảm
+  patience: 3
+
+  # Ngưỡng cải thiện tối thiểu của validation loss
+  threshold: 0.001
+
+# ------------------------------------------------------------------------------
+# 6. HYPERPARAMETER SEARCH CONFIGURATION (Cấu hình dò tìm siêu tham số Optuna)
+# ------------------------------------------------------------------------------
+hp_search:
+  # Tắt dò tìm siêu tham số để chạy trực tiếp với thông số đã được tối ưu
+  enabled: false
+
+  # Số lượt chạy thử nghiệm khi bật tìm kiếm siêu tham số
+  n_trials: 15
+
+  # Mục tiêu: tối đa hóa độ chính xác hoặc F1-score trên tập validation
+  direction: "maximize"
+
+  # Metric đánh giá chất lượng phân loại
+  metric: "eval_accuracy"
+
+  # Không gian tìm kiếm siêu tham số cho bài toán phân loại
+  search_space:
+    learning_rate:
+      - 1.0e-5
+      - 1.0e-4
+    batch_size:
+      - 8
+      - 16
+      - 32
+    gradient_accumulation_steps:
+      - 1
+      - 2
+    weight_decay:
+      - 0.0
+      - 0.1
+    warmup_ratio:
+      - 0.0
+      - 0.1
+    num_epochs:
+      - 3
+      - 5
+
+# ------------------------------------------------------------------------------
+# 7. LOGGING CONFIGURATION (Cấu hình ghi log và TensorBoard)
+# ------------------------------------------------------------------------------
+logging:
+  # Mức độ chi tiết của log: INFO
+  level: "INFO"
+
+  # Ghi log tiến trình huấn luyện sau mỗi 20 bước
+  logging_steps: 20
+
+  # Thư mục chứa log sự kiện cho TensorBoard
+  tensorboard_dir: "./runs"
+
+  # Tên định danh cho thí nghiệm phân loại
+  experiment_name: "gpt2-classification"
+
+# ------------------------------------------------------------------------------
+# 8. OUTPUT CONFIGURATION (Cấu hình lưu checkpoint và model cuối)
+# ------------------------------------------------------------------------------
+output:
+  # Thư mục lưu checkpoint trung gian
+  checkpoint_dir: "./checkpoints"
+
+  # Thư mục lưu mô hình phân loại và tokenizer hoàn chỉnh sau khi huấn luyện
+  model_dir: "./final_model"
+
+  # Giữ tối đa 3 checkpoint tốt nhất để tiết kiệm không gian lưu trữ
+  save_total_limit: 3
+
+  # Lưu checkpoint sau mỗi epoch kết thúc
+  save_strategy: "epoch"
+
+  # Số bước lưu checkpoint khi chọn strategy dạng steps
+  save_steps: 500

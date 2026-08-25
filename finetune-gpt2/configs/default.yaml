@@ -1,0 +1,321 @@
+# ==============================================================================
+# GPT-2 FINE-TUNING PIPELINE — DEFAULT CONFIGURATION
+# Cấu hình mặc định cho tác vụ Causal Language Modeling (Sinh văn bản)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. MODEL CONFIGURATION (Cấu hình mô hình)
+# ------------------------------------------------------------------------------
+model:
+  # Tên model trên HuggingFace Hub hoặc đường dẫn thư mục chứa model cục bộ
+  # Lựa chọn:
+  #   - "gpt2"        : 124M tham số (12 layers, 768 hidden) — nhẹ, chạy tốt trên GPU 4-8GB hoặc CPU testing
+  #   - "gpt2-medium" : 355M tham số (24 layers, 1024 hidden) — chất lượng tốt hơn, cần GPU 8-16GB
+  #   - "gpt2-large"  : 774M tham số (36 layers, 1280 hidden) — chất lượng cao, cần GPU 16-24GB
+  #   - "gpt2-xl"     : 1.5B tham số (48 layers, 1600 hidden) — mạnh nhất dòng GPT-2, cần GPU 24GB+ hoặc LoRA
+  #   - Đường dẫn local: "./models/gpt2-custom" nếu đã tải sẵn weights
+  # Khuyến nghị: "gpt2" để thử nghiệm nhanh, "gpt2-medium" cho sản phẩm thực tế
+  name: "gpt2"
+
+  # Loại tác vụ fine-tuning cần thực hiện
+  # Lựa chọn:
+  #   - "causal_lm"      : Sinh ngôn ngữ tự hồi quy (Next-token prediction / Text generation)
+  #   - "classification" : Phân loại văn bản (Text sequence classification, sentiment analysis...)
+  #   - "completion"     : Instruction fine-tuning / Question answering dạng completion
+  # Khuyến nghị: "causal_lm" cho bài toán học tiếp ngữ liệu và sinh văn bản
+  task_type: "causal_lm"
+
+  # Số lượng nhãn đầu ra (Chỉ áp dụng khi task_type: "classification")
+  # Lựa chọn: 2 (nhị phân), 3 (3 nhóm nhãn như tiêu cực/trung tính/tích cực), N (đa lớp)
+  # Lưu ý: Bỏ qua khi task_type là "causal_lm" hoặc "completion"
+  num_labels: 2
+
+# ------------------------------------------------------------------------------
+# 2. PEFT / LoRA CONFIGURATION (Cấu hình Low-Rank Adaptation)
+# ------------------------------------------------------------------------------
+peft:
+  # Bật hoặc tắt phương pháp tinh chỉnh hiệu quả tham số LoRA (Parameter-Efficient Fine-Tuning)
+  # Lựa chọn:
+  #   - true  : Bật LoRA — chỉ huấn luyện ~0.2% - 1.5% tham số, tiết kiệm 60-80% VRAM, chống quên tri thức cũ
+  #   - false : Full fine-tuning — cập nhật toàn bộ 100% trọng số của mô hình
+  # Khuyến nghị: true cho GPU có VRAM hạn chế (<16GB) hoặc khi fine-tune model lớn (medium/large/xl)
+  enabled: false
+
+  # Hạng (Rank) của ma trận phân rã LoRA (kích thước bottleneck)
+  # Lựa chọn: 4, 8, 16, 32, 64
+  # Khuyến nghị: 16 (cân bằng tối ưu giữa khả năng học biểu diễn và tài nguyên bộ nhớ)
+  r: 16
+
+  # Hệ số co giãn (Scaling factor) cho các ma trận LoRA
+  # Quy tắc: Thường đặt lora_alpha = 2 * r (khi r=16 -> lora_alpha=32; khi r=8 -> lora_alpha=16)
+  # Khuyến nghị: 32 khi r=16
+  lora_alpha: 32
+
+  # Tỷ lệ Dropout áp dụng cho các nhánh LoRA để chống overfitting
+  # Lựa chọn: 0.0 (không dropout), 0.05 (khuyến nghị chung), 0.1 (khi tập dữ liệu nhỏ dễ overfit)
+  # Khuyến nghị: 0.05
+  lora_dropout: 0.05
+
+  # Danh sách tên các module tuyến tính áp dụng ma trận LoRA
+  # Lưu ý với GPT-2: Kiến trúc GPT-2 sử dụng Conv1D thay vì Linear thông thường
+  # Lựa chọn:
+  #   - ["c_attn"]                   : Áp dụng cho Query-Key-Value projection trong Self-Attention (tiết kiệm nhất)
+  #   - ["c_attn", "c_proj"]         : Áp dụng cho cả QKV projection và Attention Output projection (khuyến nghị)
+  #   - ["c_attn", "c_proj", "c_fc"] : Thêm cả tầng biến đổi đầu vào của Feed-Forward Network
+  # Khuyến nghị: ["c_attn"] cho cấu hình cơ bản hoặc ["c_attn", "c_proj"] khi bật LoRA đầy đủ
+  target_modules:
+    - "c_attn"
+
+# ------------------------------------------------------------------------------
+# 3. DATA CONFIGURATION (Cấu hình dữ liệu)
+# ------------------------------------------------------------------------------
+data:
+  # Nguồn nạp dữ liệu huấn luyện
+  # Lựa chọn:
+  #   - "huggingface" : Tải tự động từ HuggingFace Hub qua dataset_name và dataset_config
+  #   - "local"       : Đọc từ file dữ liệu nội bộ trên máy (CSV, JSON, JSONL, TXT)
+  # Khuyến nghị: "huggingface" cho benchmark chuẩn, "local" cho dữ liệu domain riêng
+  source: "huggingface"
+
+  # Tên dataset trên HuggingFace Hub (Bỏ qua nếu source: "local")
+  # Ví dụ: "wikitext", "financial_phrasebank", "imdb", "roneneldan/TinyStories"
+  dataset_name: "wikitext"
+
+  # Tên cấu hình/subset cụ thể của dataset trên Hub
+  # Ví dụ: "wikitext-2-raw-v1", "wikitext-103-raw-v1", "sentences_allagree" (để null nếu không có)
+  dataset_config: "wikitext-2-raw-v1"
+
+  # Đường dẫn tới file dữ liệu cục bộ khi source: "local" (để null khi dùng HuggingFace Hub)
+  # Ví dụ: "data/corpus.txt", "data/train.jsonl", "data/dataset.csv"
+  local_path: null
+
+  # Tên cột chứa văn bản đầu vào trong bảng dữ liệu
+  # Ví dụ: "text", "sentence", "content", "prompt"
+  text_column: "text"
+
+  # Tên cột chứa nhãn số nguyên cho bài toán phân loại (Chỉ dùng khi task_type: "classification")
+  # Ví dụ: "label", "sentiment", "target"
+  label_column: "label"
+
+  # Độ dài chuỗi tối đa (tính theo số token) sau khi qua Tokenizer
+  # Lựa chọn:
+  #   - 128  : Phân loại câu ngắn, tối ưu tốc độ
+  #   - 256  : Đoạn văn độ dài trung bình
+  #   - 512  : Chuẩn mực cho Causal LM text generation (cân bằng ngữ cảnh và VRAM)
+  #   - 1024 : Giới hạn ngữ cảnh tối đa của kiến trúc GPT-2 chuẩn
+  # Khuyến nghị: 512 cho sinh văn bản tự do
+  max_length: 512
+
+  # Tỷ lệ phân chia tập dữ liệu [train, validation, test] khi dataset gốc chưa chia sẵn split
+  # Lưu ý: Tổng của 3 tỷ lệ bắt buộc phải bằng 1.0 (sai số cho phép <= 0.01)
+  # Lựa chọn: [0.8, 0.1, 0.1] (chuẩn 80/10/10), [0.9, 0.05, 0.05] (khi dữ liệu rất lớn)
+  # Khuyến nghị: [0.8, 0.1, 0.1]
+  split_ratios:
+    - 0.8
+    - 0.1
+    - 0.1
+
+  # Cấu hình tăng cường dữ liệu văn bản (Data Augmentation)
+  augmentation:
+    # Bật hoặc tắt tính năng Data Augmentation trên tập train
+    # Lựa chọn: true (bật khi tập dữ liệu huấn luyện nhỏ), false (tắt khi dữ liệu đã phong phú)
+    # Khuyến nghị: false cho causal LM text generation chuẩn
+    enabled: false
+
+    # Danh sách các kỹ thuật tăng cường dữ liệu áp dụng
+    # Lựa chọn: "synonym_replace" (thay từ đồng nghĩa), "random_delete" (xóa từ ngẫu nhiên), "random_swap" (hoán đổi từ)
+    techniques:
+      - "synonym_replace"
+      - "random_delete"
+
+    # Tỷ lệ phần trăm mẫu trong tập train được áp dụng augmentation (0.0 đến 1.0)
+    # Khuyến nghị: 0.2 (tăng cường 20% dữ liệu train)
+    augment_ratio: 0.2
+
+# ------------------------------------------------------------------------------
+# 4. TRAINING CONFIGURATION (Cấu hình siêu tham số huấn luyện)
+# ------------------------------------------------------------------------------
+training:
+  # Số lượng epoch huấn luyện qua toàn bộ dữ liệu train
+  # Lựa chọn: 1-3 (dataset lớn >100k mẫu), 3-5 (dataset vừa 5k-50k mẫu), 5-10 (dataset nhỏ <5k mẫu)
+  # Khuyến nghị: 5
+  num_epochs: 5
+
+  # Kích thước batch trên mỗi GPU trong một lượt xử lý (Micro batch size)
+  # Lựa chọn: 2, 4, 8, 16, 32 (phụ thuộc vào dung lượng VRAM và max_length)
+  # Khuyến nghị: 8 cho GPU 8-16GB, giảm xuống 4 hoặc 2 nếu gặp lỗi CUDA Out of Memory (OOM)
+  batch_size: 8
+
+  # Số bước tích lũy gradient trước khi thực hiện cập nhật trọng số optimizer
+  # Công thức Effective Batch Size = batch_size * gradient_accumulation_steps * num_gpus
+  # Lựa chọn: 1 (không tích lũy), 2 (gấp đôi effective batch), 4 (gấp 4 lần)
+  # Khuyến nghị: 2 (effective batch size = 8 * 2 = 16 với 1 GPU)
+  gradient_accumulation_steps: 2
+
+  # Tốc độ học khởi tạo (Learning Rate) của Optimizer (AdamW)
+  # Lựa chọn:
+  #   - 1e-5 đến 3e-5 : Full fine-tuning GPT-2 an toàn, tránh phá hủy weights gốc
+  #   - 5e-5          : Chuẩn mặc định cho GPT-2 fine-tuning
+  #   - 1e-4 đến 5e-4 : Dùng riêng cho LoRA fine-tuning (do chỉ cập nhật ít tham số)
+  # Khuyến nghị: 5e-5 cho full fine-tuning, 1e-4 cho LoRA
+  learning_rate: 5.0e-5
+
+  # Hệ số suy giảm trọng số (Weight Decay / L2 Regularization) để chống overfitting
+  # Lựa chọn: 0.0 (không áp dụng), 0.01 (chuẩn AdamW của HuggingFace), 0.1 (regularization mạnh)
+  # Khuyến nghị: 0.01
+  weight_decay: 0.01
+
+  # Tỷ lệ phần trăm tổng số bước huấn luyện dùng để làm nóng (Warmup) learning rate từ 0 lên max lr
+  # Lựa chọn: 0.0 (không warmup), 0.03 đến 0.06 (chuẩn 3-6%), 0.1 (10% khi dữ liệu rất đa dạng)
+  # Khuyến nghị: 0.05 (giúp quá trình khởi động tối ưu hóa ổn định, tránh phân kỳ gradient)
+  warmup_ratio: 0.05
+
+  # Chiến lược điều chỉnh tốc độ học theo thời gian (LR Scheduler)
+  # Lựa chọn:
+  #   - "cosine"   : Giảm dần theo đường cong Cosine sau warmup (hội tụ êm, khuyến nghị nhất cho GPT-2)
+  #   - "linear"   : Giảm tuyến tính đều đặn về 0 sau warmup
+  #   - "constant" : Giữ nguyên learning rate không đổi
+  # Khuyến nghị: "cosine"
+  lr_scheduler_type: "cosine"
+
+  # Giá trị khởi tạo ngẫu nhiên (Random Seed) để đảm bảo tính tái lập (Reproducibility)
+  # Khuyến nghị: 42
+  seed: 42
+
+  # Chế độ tính toán độ chính xác hỗn hợp (Mixed Precision Training) giúp tiết kiệm VRAM và tăng tốc
+  # Lựa chọn:
+  #   - "auto" : Tự động chọn bf16 trên GPU Ampere/Ada/Hopper (RTX 30xx/40xx, A100), fp16 trên Turing/Volta (T4, V100), hoặc none trên CPU
+  #   - "bf16" : Ép dùng Bfloat16 (ổn định số học, dải động rộng, không lo overflow)
+  #   - "fp16" : Ép dùng Float16 (dùng dynamic loss scaling)
+  #   - "none" : Dùng Float32 đầy đủ (bắt buộc khi train trên CPU hoặc debug số học)
+  # Khuyến nghị: "auto"
+  mixed_precision: "auto"
+
+# ------------------------------------------------------------------------------
+# 5. EARLY STOPPING CONFIGURATION (Cấu hình dừng sớm)
+# ------------------------------------------------------------------------------
+early_stopping:
+  # Bật hoặc tắt cơ chế dừng sớm khi mô hình không còn cải thiện trên tập validation
+  # Lựa chọn: true (bật để tiết kiệm tài nguyên và chống overfit), false (tắt để ép train đủ số epoch)
+  # Khuyến nghị: true
+  enabled: true
+
+  # Số lần đánh giá liên tiếp (eval cycles) không có cải thiện vượt threshold trước khi dừng huấn luyện
+  # Lựa chọn: 2-3 (dataset nhỏ, tiết kiệm thời gian), 3-5 (dataset lớn, an toàn tránh dừng sớm nhầm)
+  # Khuyến nghị: 3
+  patience: 3
+
+  # Ngưỡng cải thiện tối thiểu của validation loss để tính là một bước tiến bộ
+  # Lựa chọn: 0.0 (chỉ cần giảm bất kỳ mức nào), 0.001 (chuẩn lọc nhiễu nhẹ), 0.01 (yêu cầu cải thiện rõ rệt)
+  # Khuyến nghị: 0.001
+  threshold: 0.001
+
+# ------------------------------------------------------------------------------
+# 6. HYPERPARAMETER SEARCH CONFIGURATION (Cấu hình dò tìm siêu tham số Optuna)
+# ------------------------------------------------------------------------------
+hp_search:
+  # Bật hoặc tắt chế độ tự động dò tìm siêu tham số bằng thư viện Optuna trước khi huấn luyện chính
+  # Lựa chọn: true (chạy Optuna search), false (dùng trực tiếp thông số cấu hình ở mục training)
+  # Khuyến nghị: false cho quy trình thông thường, true khi cần tối ưu hiệu năng tối đa
+  enabled: false
+
+  # Số lượng thử nghiệm (trials) mà Optuna sẽ thực hiện
+  # Lựa chọn: 10-15 (thử nghiệm nhanh để tìm khoảng tốt), 30-50 (tìm kiếm toàn diện cho production)
+  # Khuyến nghị: 15
+  n_trials: 15
+
+  # Hướng tối ưu hóa của hàm mục tiêu
+  # Lựa chọn:
+  #   - "minimize" : Tối thiểu hóa giá trị metric (bắt buộc khi metric là eval_loss)
+  #   - "maximize" : Tối đa hóa giá trị metric (khi metric là accuracy, f1, BLEU, ROUGE)
+  # Khuyến nghị: "minimize" cho causal LM
+  direction: "minimize"
+
+  # Tên metric dùng làm mục tiêu tối ưu hóa trong quá trình đánh giá validation
+  # Lựa chọn: "eval_loss" (chuẩn cho sinh văn bản), "eval_accuracy" (phân loại), "eval_f1" (phân loại mất cân bằng)
+  # Khuyến nghị: "eval_loss"
+  metric: "eval_loss"
+
+  # Không gian tìm kiếm siêu tham số (Search Space) định nghĩa khoảng giá trị cho Optuna lấy mẫu
+  search_space:
+    # Khoảng tìm kiếm Learning Rate dạng log uniform [min, max]
+    learning_rate:
+      - 1.0e-5
+      - 5.0e-4
+    # Danh sách các giá trị batch size thử nghiệm
+    batch_size:
+      - 4
+      - 8
+      - 16
+    # Danh sách các bước tích lũy gradient thử nghiệm
+    gradient_accumulation_steps:
+      - 1
+      - 2
+      - 4
+    # Khoảng tìm kiếm hệ số Weight Decay [min, max]
+    weight_decay:
+      - 0.0
+      - 0.2
+    # Khoảng tìm kiếm tỷ lệ Warmup [min, max]
+    warmup_ratio:
+      - 0.0
+      - 0.1
+    # Khoảng tìm kiếm số epoch [min, max]
+    num_epochs:
+      - 3
+      - 6
+
+# ------------------------------------------------------------------------------
+# 7. LOGGING CONFIGURATION (Cấu hình ghi log và TensorBoard)
+# ------------------------------------------------------------------------------
+logging:
+  # Mức độ chi tiết của thông tin log hiển thị ra console và lưu file log
+  # Lựa chọn:
+  #   - "DEBUG"   : Chi tiết tối đa, bao gồm shape của tensor, thời gian từng sub-step (dùng khi gỡ lỗi)
+  #   - "INFO"    : Thông tin tiến trình chuẩn, bảng chỉ số định kỳ (khuyến nghị cho mọi tác vụ)
+  #   - "WARNING" : Chỉ thông báo các cảnh báo có khả năng gây lỗi
+  #   - "ERROR"   : Chỉ ghi nhận lỗi nghiêm trọng làm dừng chương trình
+  # Khuyến nghị: "INFO"
+  level: "INFO"
+
+  # Số bước huấn luyện giữa mỗi lần ghi log chỉ số (loss, lr, throughput) ra console/TensorBoard
+  # Lựa chọn: 10-20 (dataset nhỏ), 50 (chuẩn cân bằng), 100-200 (dataset rất lớn để giảm I/O)
+  # Khuyến nghị: 50
+  logging_steps: 50
+
+  # Thư mục lưu trữ event logs của TensorBoard để trực quan hóa biểu đồ
+  # Khuyến nghị: "./runs"
+  tensorboard_dir: "./runs"
+
+  # Tên định danh cho thí nghiệm (dùng làm tên thư mục con trong runs/ và checkpoint tag)
+  # Khuyến nghị: "gpt2-finetune"
+  experiment_name: "gpt2-finetune"
+
+# ------------------------------------------------------------------------------
+# 8. OUTPUT CONFIGURATION (Cấu hình lưu checkpoint và model cuối)
+# ------------------------------------------------------------------------------
+output:
+  # Thư mục lưu trữ các checkpoint trung gian trong suốt quá trình huấn luyện
+  # Khuyến nghị: "./checkpoints"
+  checkpoint_dir: "./checkpoints"
+
+  # Thư mục lưu trữ model hoàn chỉnh cuối cùng (weights, tokenizer, generation config) sẵn sàng inference
+  # Khuyến nghị: "./final_model"
+  model_dir: "./final_model"
+
+  # Số lượng checkpoint tốt nhất/gần nhất tối đa được lưu lại trên đĩa (các bản cũ hơn sẽ tự xóa)
+  # Lựa chọn: 1-2 (ổ cứng dung lượng ít), 3 (khuyến nghị, an toàn để rollback), 5 (khi cần đối chiếu)
+  # Khuyến nghị: 3
+  save_total_limit: 3
+
+  # Chiến lược kích hoạt việc lưu checkpoint
+  # Lựa chọn:
+  #   - "epoch" : Lưu checkpoint sau khi kết thúc mỗi epoch (khuyến nghị cho dataset vừa và nhỏ)
+  #   - "steps" : Lưu checkpoint định kỳ sau mỗi N steps (phù hợp dataset lớn, huấn luyện nhiều ngày)
+  # Khuyến nghị: "epoch"
+  save_strategy: "epoch"
+
+  # Số bước giữa mỗi lần lưu checkpoint (Chỉ có hiệu lực khi save_strategy: "steps")
+  # Lựa chọn: 100, 500, 1000
+  # Khuyến nghị: 500
+  save_steps: 500

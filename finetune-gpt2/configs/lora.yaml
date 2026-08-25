@@ -1,0 +1,204 @@
+# ==============================================================================
+# GPT-2 FINE-TUNING PIPELINE — LoRA CONFIGURATION
+# Cấu hình tinh chỉnh hiệu quả tham số bằng LoRA (Parameter-Efficient Fine-Tuning)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. MODEL CONFIGURATION (Cấu hình mô hình)
+# ------------------------------------------------------------------------------
+model:
+  # Tên mô hình GPT-2 trên HuggingFace Hub hoặc đường dẫn cục bộ
+  # LoRA cho phép fine-tune các biến thể GPT-2 lớn (medium/large/xl) trên GPU cá nhân
+  name: "gpt2"
+
+  # Loại tác vụ: Causal Language Modeling (sinh văn bản / dự đoán token tiếp theo)
+  task_type: "causal_lm"
+
+  # Số lượng nhãn đầu ra (không sử dụng cho tác vụ causal_lm)
+  num_labels: 2
+
+# ------------------------------------------------------------------------------
+# 2. PEFT / LoRA CONFIGURATION (Cấu hình Low-Rank Adaptation)
+# ------------------------------------------------------------------------------
+peft:
+  # Bật kỹ thuật LoRA — đóng băng toàn bộ backbone GPT-2, chỉ gắn thêm ma trận low-rank
+  # Lợi ích: Huấn luyện chỉ ~0.2% - 1.5% tổng số tham số, giảm tải bộ nhớ VRAM và tăng tốc huấn luyện
+  enabled: true
+
+  # Hạng rank của ma trận phân rã LoRA (r=16 cung cấp dung lượng biểu diễn phong phú)
+  r: 16
+
+  # Hệ số scaling lora_alpha = 32 (tương ứng tỉ lệ scaling alpha/r = 2.0 chuẩn cho LoRA)
+  lora_alpha: 32
+
+  # Tỷ lệ Dropout cho các tầng LoRA để chống hiện tượng overfitting
+  lora_dropout: 0.05
+
+  # Các module mục tiêu áp dụng LoRA trong kiến trúc Conv1D của GPT-2:
+  # - "c_attn" : Chiếu Query, Key, Value trong khối Multi-Head Attention
+  # - "c_proj" : Tầng chiếu đầu ra của khối Attention (Output Projection)
+  target_modules:
+    - "c_attn"
+    - "c_proj"
+
+# ------------------------------------------------------------------------------
+# 3. DATA CONFIGURATION (Cấu hình dữ liệu)
+# ------------------------------------------------------------------------------
+data:
+  # Nguồn nạp dữ liệu: tải trực tiếp từ HuggingFace Hub
+  source: "huggingface"
+
+  # Tên dataset chuẩn mực cho ngôn ngữ tự nhiên: WikiText
+  dataset_name: "wikitext"
+
+  # Phiên bản dữ liệu thô chuẩn WikiText-2
+  dataset_config: "wikitext-2-raw-v1"
+
+  # Không sử dụng đường dẫn file local
+  local_path: null
+
+  # Cột chứa nội dung văn bản trong dataset
+  text_column: "text"
+
+  # Cột chứa nhãn phân loại (không áp dụng cho causal_lm)
+  label_column: "label"
+
+  # Độ dài chuỗi token tối đa cho mỗi mẫu dữ liệu
+  max_length: 512
+
+  # Tỷ lệ chia tập dữ liệu: 80% train, 10% validation, 10% test
+  split_ratios:
+    - 0.8
+    - 0.1
+    - 0.1
+
+  # Cấu hình tăng cường dữ liệu văn bản
+  augmentation:
+    # Tắt augmentation cho bài toán Causal LM chuẩn
+    enabled: false
+
+    # Danh sách kỹ thuật tăng cường dữ liệu
+    techniques:
+      - "synonym_replace"
+      - "random_delete"
+
+    # Tỷ lệ phần trăm mẫu được tăng cường trong tập train
+    augment_ratio: 0.2
+
+# ------------------------------------------------------------------------------
+# 4. TRAINING CONFIGURATION (Cấu hình siêu tham số huấn luyện)
+# ------------------------------------------------------------------------------
+training:
+  # Số epoch huấn luyện (5 epoch đủ để các adapter LoRA hội tụ chất lượng cao)
+  num_epochs: 5
+
+  # Kích thước batch trên mỗi GPU (nhờ LoRA tiết kiệm VRAM nên có thể giữ batch size 8 hoặc lớn hơn)
+  batch_size: 8
+
+  # Tích lũy gradient 2 bước -> Effective batch size = 16
+  gradient_accumulation_steps: 2
+
+  # Learning rate 1e-4 (LoRA chỉ huấn luyện số lượng ít tham số adapter mới nên cần tốc độ học lớn hơn full fine-tuning)
+  learning_rate: 1.0e-4
+
+  # Hệ số Weight Decay giúp tối ưu hóa trọng số adapter
+  weight_decay: 0.01
+
+  # Giai đoạn warmup 5% tổng số bước để tốc độ học tăng mượt mà
+  warmup_ratio: 0.05
+
+  # Giảm dần tốc độ học theo đường cong Cosine sau warmup
+  lr_scheduler_type: "cosine"
+
+  # Random seed cố định đảm bảo tính tái lập kết quả thí nghiệm
+  seed: 42
+
+  # Tự động chọn chế độ mixed precision (bf16/fp16/none) phù hợp với phần cứng
+  mixed_precision: "auto"
+
+# ------------------------------------------------------------------------------
+# 5. EARLY STOPPING CONFIGURATION (Cấu hình dừng sớm)
+# ------------------------------------------------------------------------------
+early_stopping:
+  # Bật cơ chế dừng sớm để tránh overfitting khi adapter đã hội tụ
+  enabled: true
+
+  # Dừng sau 3 lần đánh giá liên tiếp không cải thiện
+  patience: 3
+
+  # Ngưỡng cải thiện tối thiểu của validation loss
+  threshold: 0.001
+
+# ------------------------------------------------------------------------------
+# 6. HYPERPARAMETER SEARCH CONFIGURATION (Cấu hình dò tìm siêu tham số Optuna)
+# ------------------------------------------------------------------------------
+hp_search:
+  # Tắt tìm kiếm siêu tham số tự động
+  enabled: false
+
+  # Số lượt thử nghiệm Optuna
+  n_trials: 15
+
+  # Hướng tối ưu: giảm thiểu loss trên tập validation
+  direction: "minimize"
+
+  # Metric đánh giá: validation loss
+  metric: "eval_loss"
+
+  # Không gian tìm kiếm siêu tham số cho LoRA
+  search_space:
+    learning_rate:
+      - 5.0e-5
+      - 5.0e-4
+    batch_size:
+      - 4
+      - 8
+      - 16
+    gradient_accumulation_steps:
+      - 1
+      - 2
+      - 4
+    weight_decay:
+      - 0.0
+      - 0.1
+    warmup_ratio:
+      - 0.0
+      - 0.1
+    num_epochs:
+      - 3
+      - 6
+
+# ------------------------------------------------------------------------------
+# 7. LOGGING CONFIGURATION (Cấu hình ghi log và TensorBoard)
+# ------------------------------------------------------------------------------
+logging:
+  # Mức độ log chi tiết chuẩn
+  level: "INFO"
+
+  # Ghi log tiến trình huấn luyện sau mỗi 50 bước
+  logging_steps: 50
+
+  # Thư mục chứa log sự kiện cho TensorBoard
+  tensorboard_dir: "./runs"
+
+  # Tên định danh cho thí nghiệm LoRA
+  experiment_name: "gpt2-lora"
+
+# ------------------------------------------------------------------------------
+# 8. OUTPUT CONFIGURATION (Cấu hình lưu checkpoint và model cuối)
+# ------------------------------------------------------------------------------
+output:
+  # Thư mục lưu checkpoint LoRA adapter trung gian
+  checkpoint_dir: "./checkpoints"
+
+  # Thư mục lưu adapter weights LoRA hoàn chỉnh và config cuối cùng
+  model_dir: "./final_model"
+
+  # Giữ tối đa 3 checkpoint tốt nhất
+  save_total_limit: 3
+
+  # Lưu checkpoint sau mỗi epoch kết thúc
+  save_strategy: "epoch"
+
+  # Số bước lưu checkpoint khi chọn strategy dạng steps
+  save_steps: 500
