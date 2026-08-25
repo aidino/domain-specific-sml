@@ -68,12 +68,11 @@ def _build_training_args(config: PipelineConfig, best_hp: Optional[Dict[str, Any
         "gradient_accumulation_steps": config.training.gradient_accumulation_steps,
         "learning_rate": config.training.learning_rate,
         "weight_decay": config.training.weight_decay,
-        "warmup_ratio": config.training.warmup_ratio,
+        "warmup_steps": max(1, int(config.training.warmup_ratio * config.training.num_epochs * 100)),  # Chuyển warmup_ratio → warmup_steps (ước lượng)
         "lr_scheduler_type": config.training.lr_scheduler_type,
         "seed": config.training.seed,
         "bf16": bf16,
         "fp16": fp16,
-        "logging_dir": logging_dir,
         "logging_steps": config.logging.logging_steps,
         "report_to": ["tensorboard"],
         "eval_strategy": config.output.save_strategy, # Bắt buộc giống save_strategy khi load_best_model_at_end=True
