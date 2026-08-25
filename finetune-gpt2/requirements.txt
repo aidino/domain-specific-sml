@@ -1,0 +1,47 @@
+# ============================================================
+# DEPENDENCIES CHO GPT-2 FINE-TUNING PIPELINE
+# ============================================================
+
+# === Core Framework ===
+# HuggingFace Transformers: Thư viện chính cho model, tokenizer, Trainer API
+transformers>=4.40.0
+# HuggingFace Datasets: Thư viện load và xử lý dataset từ Hub hoặc local
+datasets>=2.18.0
+# PyTorch: Backend deep learning framework
+torch>=2.0.0
+# PEFT: Parameter-Efficient Fine-Tuning (LoRA, Adapter)
+peft>=0.10.0
+# Optuna: Hyperparameter optimization framework
+optuna>=3.6.0
+# Accelerate: Hỗ trợ multi-GPU, mixed precision, distributed training
+accelerate>=0.28.0
+
+# === Evaluation ===
+# HuggingFace Evaluate: Tính metrics (accuracy, f1, rouge, bleu)
+evaluate>=0.4.0
+# Scikit-learn: Confusion matrix, classification report
+scikit-learn>=1.4.0
+
+# === Logging & Visualization ===
+# TensorBoard: Visualization training history
+tensorboard>=2.16.0
+# Rich: Beautiful console output với colors, tables, progress bars
+rich>=13.7.0
+
+# === Data Processing ===
+# NumPy: Numerical operations
+numpy>=1.26.0
+# Pandas: Data manipulation cho local files (CSV, JSON)
+pandas>=2.2.0
+
+# === Utilities ===
+# PyYAML: Đọc/ghi file YAML config
+pyyaml>=6.0
+# Safetensors: Lưu model weights an toàn, nhanh
+safetensors>=0.4.0
+
+# === Optional ===
+# TRL: DataCollatorForCompletionOnlyLM cho instruction fine-tuning
+trl>=0.8.0
+# NLPAug: Text augmentation (synonym replace, random delete...)
+# nlpaug>=1.1.11
