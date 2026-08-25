@@ -52,6 +52,7 @@ finetune-gpt2/
 │   └── utils.py                  # Logger, device detection, seed, timer
 ├── main.py                       # CLI entry point - chạy full hoặc từng step
 ├── compare.py                    # So sánh experiments
+├── README.md                     # Tutorial & 8 production use cases (end-to-end)
 └── requirements.txt              # Dependencies
 ```
 
@@ -683,7 +684,158 @@ trl>=0.8.0                    # DataCollatorForCompletionOnlyLM (optional, cho c
 
 ---
 
-## 9. Future Extensions (Ngoài scope hiện tại)
+## 9. README.md — Tutorial & Production Use Cases
+
+File `finetune-gpt2/README.md` sẽ là tutorial hoàn chỉnh bao gồm:
+
+### 9.1 Cấu Trúc README
+
+```
+README.md
+├── Giới thiệu & Tính năng
+├── Cài đặt (Installation)
+├── Quick Start (chạy 5 phút)
+├── 8 Production Use Cases (end-to-end)
+│   ├── UC1: Customer Service Chatbot
+│   ├── UC2: Marketing Content Generation
+│   ├── UC3: Code Generation (Python)
+│   ├── UC4: Sentiment Analysis / Classification
+│   ├── UC5: Domain-Specific (Legal/Medical/Financial)
+│   ├── UC6: Vietnamese Language Tasks
+│   ├── UC7: Creative Writing & Storytelling
+│   └── UC8: Data Extraction & Structured Output
+├── Troubleshooting Guide (lỗi thường gặp)
+├── Bảng tham khảo Hyperparameters
+├── FAQ
+└── Đóng góp (Contributing)
+```
+
+### 9.2 Nội Dung Từng Use Case
+
+Mỗi use case sẽ có cấu trúc giống nhau:
+
+1. **Mô tả bài toán** — Giải thích use case thực tế, ngành nào dùng
+2. **Dataset** — Tên dataset trên HuggingFace Hub, format data mẫu
+3. **Config YAML** — File config hoàn chỉnh copy-paste được
+4. **Lệnh chạy** — Command end-to-end từ data → train → evaluate → generate
+5. **Kết quả kỳ vọng** — Metrics benchmark (perplexity, accuracy, ROUGE...)
+6. **Lỗi thường gặp & cách fix** — Bảng lỗi cụ thể cho use case đó
+7. **Tips & Best practices** — Gợi ý hyperparameters, model size, LoRA settings
+
+### 9.3 Chi Tiết 8 Use Cases
+
+#### UC1: Customer Service Chatbot
+- **Ngành:** E-commerce, SaaS, Telecom
+- **Dataset:** `bitext/Bitext-customer-support-llm-chatbot-training-dataset`
+- **Task:** `causal_lm` với speaker tokens `<|user|>`, `<|bot|>`
+- **Model:** `microsoft/DialoGPT-medium` hoặc `gpt2-medium`
+- **Metrics kỳ vọng:** PPL 12-18, BLEU-4 22-28%, ROUGE-L 35-42%
+- **Lỗi phổ biến:**
+  - Lặp vô hạn → fix: `repetition_penalty=1.2`, `no_repeat_ngram_size=3`
+  - Bot trả lời cả phần user → fix: thêm special tokens `<|user|>`, `<|bot|>` vào tokenizer
+  - Thiếu pad_token → fix: `tokenizer.pad_token = tokenizer.eos_token`
+
+#### UC2: Marketing Content Generation (SEO/Ad Copy)
+- **Ngành:** Digital Marketing, E-commerce
+- **Dataset:** `McAuley-Lab/Amazon-Reviews-2023`, `hezarfen/marketing-product-generator`
+- **Task:** `completion` (chỉ tính loss trên phần description)
+- **Model:** `gpt2-medium`, LR `5e-5` full / `2e-4` LoRA
+- **Metrics kỳ vọng:** PPL 10.5-15, ROUGE-1 40-46%
+- **Lỗi phổ biến:**
+  - Model copy lại bullet points thay vì viết prose → fix: mask prompt loss (labels=-100)
+  - OOM → fix: gradient checkpointing + LoRA
+
+#### UC3: Code Generation (Python Autocomplete)
+- **Ngành:** Developer Tooling, IDE Plugins
+- **Dataset:** `code_search_net`, `openai_humaneval`, `bigcode/the-stack-smol`
+- **Task:** `causal_lm`
+- **Model:** `microsoft/CodeGPT-small-py`
+- **Metrics kỳ vọng:** PPL 4.5-8, Pass@1 18-28%, Syntax validity >92%
+- **Lỗi phổ biến:**
+  - Lỗi indent/syntax → fix: dùng tokenizer code-specific, thêm whitespace tokens
+  - Không dừng sinh code → fix: set `eos_token_id`, custom stopping criteria
+
+#### UC4: Sentiment Analysis / Text Classification
+- **Ngành:** FinTech, Brand Monitoring
+- **Dataset:** `financial_phrasebank`, `imdb`, `tweet_eval`
+- **Task:** `classification` (`GPT2ForSequenceClassification`)
+- **Model:** `gpt2`, LR `2e-5`, max_length 128-256
+- **Metrics kỳ vọng:** Accuracy 91-95%, F1 0.88-0.93
+- **Lỗi phổ biến:**
+  - Accuracy chỉ ~33% (random) → fix: **BẮT BUỘC** `tokenizer.padding_side = "left"` cho GPT-2 classification
+  - Labels type error → fix: convert labels sang `torch.long`
+  - Class imbalance → fix: `CrossEntropyLoss(weight=class_weights)`
+
+#### UC5: Domain-Specific (Legal/Medical/Financial)
+- **Ngành:** HealthTech, LegalTech, Compliance
+- **Dataset:** `gamino/wiki_medical_terms`, `pile-of-law`, `lex_glue`
+- **Task:** `causal_lm` (structured domain generation)
+- **Model:** `gpt2-medium` hoặc `gpt2-large`, LR thấp `2e-5`
+- **Metrics kỳ vọng:** PPL 8.5-14, ROUGE-L 42-48%
+- **Lỗi phổ biến:**
+  - Hallucination nguy hiểm (sai liều thuốc) → fix: kết hợp RAG, KHÔNG dùng standalone
+  - Catastrophic forgetting → fix: dùng LoRA thay vì full fine-tuning
+  - Abbreviation bị tách ký tự → fix: `tokenizer.add_tokens(["HIPAA", "SOAP", ...])`
+
+#### UC6: Vietnamese Language Tasks
+- **Ngành:** Vietnamese Media, Publishing, AI Assistants
+- **Dataset:** `bkai-foundation-models/BKAINewsCorpus`, `vietgpt/wikipedia_vi`
+- **Task:** `causal_lm`
+- **Model:** `NlpHUST/gpt2-vietnamese` (KHÔNG dùng English GPT-2 tokenizer)
+- **Metrics kỳ vọng:** PPL 15-22, BLEU-2 35-42%
+- **Lỗi phổ biến:**
+  - Tiếng Việt bị tách thành byte sequences → fix: dùng Vietnamese-specific tokenizer
+  - Lục Bát sai luật bằng/trắc → fix: post-process hoặc train trên curated poetry dataset
+
+#### UC7: Creative Writing & Storytelling
+- **Ngành:** Gaming (Text RPG), Fiction Publishing, EdTech
+- **Dataset:** `roneneldan/TinyStories`, `writingprompts`, `roc_stories`
+- **Task:** `completion` / `causal_lm`
+- **Model:** `gpt2-medium` hoặc `gpt2-large`
+- **Metrics kỳ vọng:** PPL 16-24, Distinct-2 >0.75
+- **Lỗi phổ biến:**
+  - "Perplexity Trap" (PPL thấp nhưng text nhàm chán) → fix: tune decoding params, KHÔNG over-minimize loss
+  - Mất coherence sau 200 tokens → fix: hierarchical conditioning (summary → outline → chapter)
+
+#### UC8: Data Extraction & Structured Output (JSON/Table-to-Text)
+- **Ngành:** Business Intelligence, Data Engineering, Reporting
+- **Dataset:** `web_nlg`, `e2e_nlg`, `wiki_bio`
+- **Task:** `completion` / `causal_lm`
+- **Model:** `gpt2` hoặc `gpt2-medium`
+- **Metrics kỳ vọng:** BLEU-4 48-55, JSON validity >96%
+- **Lỗi phổ biến:**
+  - JSON syntax invalid → fix: `temperature=0.0`, constrained decoding (`outlines`/`jsonformer`)
+  - Hallucinate attributes không có trong input → fix: mask prompt loss, augment triple order
+
+### 9.4 Troubleshooting Guide (Tổng hợp)
+
+README sẽ chứa bảng tổng hợp lỗi chung cho TẤT CẢ use cases:
+
+| Lỗi | Nguyên nhân | Cách fix |
+|---|---|---|
+| `pad_token` error | GPT-2 không có pad token | `tokenizer.pad_token = tokenizer.eos_token` |
+| Classification accuracy ~random | Right padding cho GPT-2 | `tokenizer.padding_side = "left"` |
+| CUDA OOM | Batch size quá lớn / model quá lớn | Giảm batch_size, bật LoRA, gradient checkpointing |
+| Repetitive output | Thiếu penalty khi generate | `repetition_penalty=1.2, no_repeat_ngram_size=3` |
+| Catastrophic forgetting | Full fine-tuning trên data nhỏ | Dùng LoRA, mix 10% general corpus |
+| Loss NaN/Inf | FP16 overflow | Chuyển sang bf16 hoặc giảm learning rate |
+| eval_strategy ≠ save_strategy | Config mismatch | Phải set cả hai giống nhau |
+
+### 9.5 Bảng Tham Khảo Hyperparameters
+
+Bảng tổng hợp recommended hyperparameters theo model size:
+
+| Param | gpt2 (124M) | gpt2-medium (355M) | gpt2-large (774M) |
+|---|---|---|---|
+| Learning Rate | 3e-5 – 5e-5 | 2e-5 – 3e-5 | 1e-5 – 2e-5 |
+| Batch Size | 8-16 | 4-8 | 2-4 |
+| VRAM cần thiết | 4-8 GB | 8-16 GB | 16-24 GB |
+| LoRA rank | 8-16 | 16-32 | 16-32 |
+| Max context | 512-1024 | 512-1024 | 512-1024 |
+
+---
+
+## 10. Future Extensions (Ngoài scope hiện tại)
 
 - Weights & Biases integration
 - QLoRA (quantized LoRA)
