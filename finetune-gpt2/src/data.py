@@ -156,7 +156,7 @@ def _augment_data(dataset: DatasetDict, config: PipelineConfig) -> DatasetDict:
     Tăng cường dữ liệu bằng các phép biến đổi đơn giản trên tập train.
     """
     # Nếu tính năng augmentation bị tắt hoặc không có kỹ thuật nào được chọn thì bỏ qua
-    if not config.data.augmentation_enabled or not config.data.augmentation_techniques:
+    if not config.data.augmentation.enabled or not config.data.augmentation.techniques:
         # Trả về dataset giữ nguyên
         return dataset
         
@@ -167,8 +167,8 @@ def _augment_data(dataset: DatasetDict, config: PipelineConfig) -> DatasetDict:
     # Lấy tên cột chứa text
     text_col = config.data.text_column
     
-    # Tính số lượng mẫu cần augment dựa trên augmentation_ratio
-    num_samples = int(len(train_set) * config.data.augmentation_ratio)
+    # Tính số lượng mẫu cần augment dựa trên augment_ratio
+    num_samples = int(len(train_set) * config.data.augmentation.augment_ratio)
     
     def random_delete(words, p=0.15):
         """Xóa ngẫu nhiên các từ với xác suất p."""
@@ -213,7 +213,7 @@ def _augment_data(dataset: DatasetDict, config: PipelineConfig) -> DatasetDict:
         words = text.split()
         
         # Chọn ngẫu nhiên một kỹ thuật augmentation từ danh sách cấu hình
-        technique = random.choice(config.data.augmentation_techniques)
+        technique = random.choice(config.data.augmentation.techniques)
         
         # Áp dụng kỹ thuật tương ứng
         if technique == "random_delete":
