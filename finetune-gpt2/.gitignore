@@ -1,0 +1,27 @@
+# Checkpoints & models — không commit các file model lớn
+checkpoints/
+final_model/
+*.safetensors
+*.bin
+*.pt
+
+# TensorBoard logs — được tạo trong quá trình training
+runs/
+
+# Python cache — tự động tạo bởi Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Optuna database — lưu trữ kết quả HP search
+*.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
