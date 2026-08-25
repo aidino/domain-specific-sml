@@ -11,7 +11,7 @@ sudo apt install python3.14 python3.14-venv python3.14-dev
 
 # Installing toolkit
 pip install "numpy>=2.0" "pandas>=3.0" matplotlib torch scikit-learn
-pip install "transformers[torch]" datasets
+pip install "transformers[torch]" datasets optuna
 
 # Install torch with GPU
 # pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu126
