@@ -136,7 +136,7 @@ def detect_device() -> dict:
             gpu_name = torch.cuda.get_device_name(i)
             device_info["gpu_names"].append(gpu_name)
             # Lấy tổng VRAM của GPU này (bytes → GB)
-            vram_bytes = torch.cuda.get_device_properties(i).total_mem
+            vram_bytes = torch.cuda.get_device_properties(i).total_memory
             total_vram += vram_bytes / (1024 ** 3)  # Chuyển bytes sang GB
 
         # Lưu tổng VRAM, làm tròn 1 chữ số thập phân
