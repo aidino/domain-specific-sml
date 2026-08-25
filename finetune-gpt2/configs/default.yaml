@@ -78,8 +78,8 @@ data:
   source: "huggingface"
 
   # Tên dataset trên HuggingFace Hub (Bỏ qua nếu source: "local")
-  # Ví dụ: "wikitext", "financial_phrasebank", "imdb", "roneneldan/TinyStories"
-  dataset_name: "wikitext"
+  # Ví dụ: "Salesforce/wikitext", "financial_phrasebank", "stanfordnlp/imdb", "roneneldan/TinyStories"
+  dataset_name: "Salesforce/wikitext"
 
   # Tên cấu hình/subset cụ thể của dataset trên Hub
   # Ví dụ: "wikitext-2-raw-v1", "wikitext-103-raw-v1", "sentences_allagree" (để null nếu không có)

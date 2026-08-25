@@ -49,7 +49,7 @@ data:
   source: "huggingface"
 
   # Tên dataset chuẩn mực cho ngôn ngữ tự nhiên: WikiText
-  dataset_name: "wikitext"
+  dataset_name: "Salesforce/wikitext"
 
   # Phiên bản dữ liệu thô chuẩn WikiText-2
   dataset_config: "wikitext-2-raw-v1"

@@ -67,7 +67,7 @@ model:
 # Cấu hình Dữ liệu
 data:
   source: "huggingface"           # Nguồn (HuggingFace Hub hoặc local file)
-  dataset_name: "wikitext"        # Tên dataset
+  dataset_name: "Salesforce/wikitext"  # Tên dataset
   dataset_config: "wikitext-2-raw-v1" # Cấu hình của dataset
   text_column: "text"             # Cột chứa văn bản
   max_length: 512                 # Độ dài chuỗi tối đa

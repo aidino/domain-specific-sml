@@ -89,7 +89,7 @@ class DataConfig:
     max_length: 128 (classification), 512 (text gen), 1024 (max GPT-2)
     """
     source: str = "huggingface"           # Nguồn: huggingface | local
-    dataset_name: str = "wikitext"        # Tên dataset trên HuggingFace Hub
+    dataset_name: str = "Salesforce/wikitext"  # Tên dataset trên HuggingFace Hub (namespace/name)
     dataset_config: Optional[str] = "wikitext-2-raw-v1"  # Config/subset
     local_path: Optional[str] = None      # Đường dẫn file local
     text_column: str = "text"             # Tên cột chứa text
