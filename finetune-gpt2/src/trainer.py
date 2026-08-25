@@ -113,7 +113,8 @@ def _build_callbacks(config: PipelineConfig, tokenizer: PreTrainedTokenizerBase)
     callbacks.append(RichLoggingCallback())
     
     # Bắt buộc: Ghi nhận thêm metric ra TensorBoard
-    callbacks.append(TensorBoardMetricsCallback())
+    tb_log_dir = f"{config.logging.tensorboard_dir}/{config.logging.experiment_name}"  # Thư mục TensorBoard logs
+    callbacks.append(TensorBoardMetricsCallback(log_dir=tb_log_dir))
     
     # Early Stopping Callback nếu được bật
     if config.early_stopping.enabled:
