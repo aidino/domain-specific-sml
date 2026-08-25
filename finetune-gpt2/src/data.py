@@ -271,10 +271,15 @@ def _tokenize_dataset(dataset: DatasetDict, tokenizer: PreTrainedTokenizerBase, 
         # Trả về kết quả
         return result
         
+    # Lấy danh sách cột gốc cần loại bỏ sau khi tokenize (ví dụ: "text")
+    # vì DataCollator chỉ cần input_ids, attention_mask
+    columns_to_remove = dataset[list(dataset.keys())[0]].column_names
+
     # Áp dụng hàm map cho tất cả tập dữ liệu theo batch
     tokenized_dataset = dataset.map(
         tokenize_function,
         batched=True,
+        remove_columns=columns_to_remove,
         desc="Tokenizing",
     )
     

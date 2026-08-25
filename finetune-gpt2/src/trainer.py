@@ -128,7 +128,11 @@ def _build_callbacks(config: PipelineConfig, tokenizer: PreTrainedTokenizerBase)
         
     # Callback sinh mẫu văn bản (chỉ cho causal_lm hoặc completion)
     if config.model.task_type in ["causal_lm", "completion"]:
-        callbacks.append(GenerationSampleCallback(tokenizer=tokenizer))
+        callbacks.append(GenerationSampleCallback(
+            sample_prompt="Once upon a time",
+            tokenizer=tokenizer,
+            task_type=config.model.task_type,
+        ))
         logger.info("Đã bật GenerationSampleCallback để sinh text cuối mỗi epoch.")
         
     return callbacks
