@@ -74,7 +74,8 @@ def _build_training_args(config: PipelineConfig, best_hp: Optional[Dict[str, Any
         "bf16": bf16,
         "fp16": fp16,
         "logging_steps": config.logging.logging_steps,
-        "report_to": ["tensorboard"],
+        "run_name": config.logging.experiment_name,   # Tên run trong TensorBoard (hiển thị trong UI)
+        "report_to": ["tensorboard"],                 # TensorBoard logs ghi vào {output_dir}/runs/
         "eval_strategy": config.output.save_strategy, # Bắt buộc giống save_strategy khi load_best_model_at_end=True
         "save_strategy": config.output.save_strategy,
         "save_steps": config.output.save_steps,
